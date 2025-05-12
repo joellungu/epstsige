@@ -27,6 +27,9 @@ public class Etablissement extends PanacheEntity {
     @Column(name = "user_id")
     public Long userId;
 
+    @Column(name = "annee_id")
+    public Long anneeId;
+
     @Column(name = "libelle", length = 191)
     public String libelle;
 

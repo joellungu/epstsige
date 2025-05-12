@@ -27,6 +27,13 @@ public class EtablissementResource {
     private static final double SIMILARITY_THRESHOLD = 0.7;
 
     @GET
+    @Path("quantite")
+    public Response getQuantite(@QueryParam("anneeId") Long anneeId) {
+        List<Etablissement> etablissements = Etablissement.find("anneeId", anneeId).list();
+        return Response.ok(etablissements.size()).build();
+    }
+
+    @GET
     public Response getAll(
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("20") int size) {

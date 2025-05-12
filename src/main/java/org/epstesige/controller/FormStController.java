@@ -6,6 +6,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.epstesige.models.Enseignants;
+import org.epstesige.models.Etablissement;
 import org.epstesige.models.FormSt;
 
 import java.util.ArrayList;
@@ -18,6 +19,13 @@ import java.util.Map;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class FormStController {
+
+    @GET
+    @Path("quantite")
+    public Response getQuantite(@QueryParam("anneeId") Long anneeId) {
+        List<FormSt> formSts = FormSt.find("idannee", anneeId).list();
+        return Response.ok(formSts.size()).build();
+    }
 
     @POST
     @Transactional
