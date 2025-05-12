@@ -31,14 +31,14 @@ public class UserResource {
         return User.findById(id);
     }
 
-    @GET
+    @POST
     @Path("/login")
-    public Response login(@QueryParam("mdp") String password, @QueryParam("username") String username) {
-        //
+    public Response login(HashMap us) {
+        //@QueryParam("mdp") String password, @QueryParam("username") String username
         HashMap params = new HashMap();
         //
-        params.put("username",username);
-        params.put("mdp",password);
+        params.put("username", us.get("username"));
+        params.put("mdp", us.get("password"));
          //
         User user = (User) User.find("username =: username and mdp =: mdp", params).firstResult();
         if(user == null){
