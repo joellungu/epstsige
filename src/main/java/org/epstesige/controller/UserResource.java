@@ -7,8 +7,11 @@ import jakarta.ws.rs.core.Response;
 import org.epstesige.models.Identification;
 import org.epstesige.models.User;
 
+import io.quarkus.panache.common.Sort;
+
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -17,13 +20,117 @@ import java.util.stream.Collectors;
 @Consumes(MediaType.APPLICATION_JSON)
 public class UserResource {
 
-    @GET
-    @Transactional
-    public List<User> listAll() {
-        //List<User> listUsers = User.listAll();
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_PAGE_SIZE = 20;
 
-        return User.listAll();
+    @GET
+    public Response getUsers(
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("20") int size,
+            @QueryParam("sort") @DefaultValue("name") String sortField,
+            @QueryParam("direction") @DefaultValue("asc") String direction,
+            @QueryParam("search") String searchTerm,
+            @QueryParam("active") Boolean active,
+            @QueryParam("role") String role,
+            @QueryParam("provinceId") Long provinceId,
+            @QueryParam("provedId") Long provedId) {
+
+        // Validation des paramètres
+        if (page < 0) page = DEFAULT_PAGE;
+        if (size <= 0 || size > 100) size = DEFAULT_PAGE_SIZE;
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction) 
+            ? Sort.Direction.Descending 
+            : Sort.Direction.Ascending;
+        Sort sort = Sort.by(sortField, sortDirection);
+
+        // Construction de la requête avec filtres
+        StringBuilder queryBuilder = new StringBuilder();
+        Map<String, Object> params = new HashMap<>();
+
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            queryBuilder.append("(name LIKE :search OR email LIKE :search OR phone LIKE :search)");
+            params.put("search", "%" + searchTerm + "%");
+        }
+
+        if (active != null) {
+            if (!queryBuilder.isEmpty()) queryBuilder.append(" AND ");
+            queryBuilder.append("active = :active");
+            params.put("active", active);
+        }
+
+        if (role != null && !role.isBlank()) {
+            if (!queryBuilder.isEmpty()) queryBuilder.append(" AND ");
+            queryBuilder.append("roles LIKE :role");
+            params.put("role", "%" + role + "%");
+        }
+
+        if (provinceId != null) {
+            if (!queryBuilder.isEmpty()) queryBuilder.append(" AND ");
+            queryBuilder.append("fk_province_id = :provinceId");
+            params.put("provinceId", provinceId);
+        }
+
+        if (provedId != null) {
+            if (!queryBuilder.isEmpty()) queryBuilder.append(" AND ");
+            queryBuilder.append("fk_proved_id = :provedId");
+            params.put("provedId", provedId);
+        }
+
+        // Ajout de la condition isDeleted = false si nécessaire
+        if (!queryBuilder.isEmpty()) queryBuilder.append(" AND ");
+        queryBuilder.append("is_deleted = false");
+
+        String query = queryBuilder.toString();
+
+        // Exécution de la requête paginée
+        var userQuery = params.isEmpty() 
+            ? User.findAll(sort) 
+            : User.find(query, sort, params);
+
+        var users = userQuery.page(page, size).list();
+        long totalCount = userQuery.count();
+        int totalPages = (int) Math.ceil((double) totalCount / size);
+
+        // Construction de la réponse
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", users);
+        response.put("page", page);
+        response.put("size", size);
+        response.put("totalElements", totalCount);
+        response.put("totalPages", totalPages);
+        response.put("sort", sortField + "," + direction);
+
+        return Response.ok(response).build();
     }
+
+    @GET
+    @Path("/by-territoire/{territoireId}")
+    public Response getByTerritoire(
+            @PathParam("territoireId") Long territoireId,
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("20") int size) {
+
+        var userQuery = User.find("fk_territoire_id = ?1 AND is_deleted = false", territoireId);
+        var users = userQuery.page(page, size).list();
+        long totalCount = userQuery.count();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", users);
+        response.put("page", page);
+        response.put("size", size);
+        response.put("totalElements", totalCount);
+        response.put("totalPages", (int) Math.ceil((double) totalCount / size));
+
+        return Response.ok(response).build();
+    }
+
+    // @GET
+    // @Transactional
+    // public List<User> listAll() {
+    //     //List<User> listUsers = User.listAll();
+
+    //     return User.listAll();
+    // }
 
     @GET
     @Path("/{id}")
